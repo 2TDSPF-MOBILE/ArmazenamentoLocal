@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { useState,useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
 import { TextInputMask } from 'react-native-masked-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -8,8 +8,14 @@ export default function App() {
   const [nomeProduto, setNomeProduto] = useState("")
   const [precoProduto, setPrecoProduto] = useState()
   const [listaProdutos,setListaProduto]=useState([])
+  const[produtoEditado,setProdutoEditado]=useState(null)
+
+  useEffect(()=>{
+    BuscarDados()
+  },[])
 
   async function Salvar(){
+    Keyboard.dismiss()
     let produtos = []
 
     //Carregar os dados  no Async Storage
@@ -17,13 +23,24 @@ export default function App() {
       produtos = JSON.parse(await AsyncStorage.getItem("PRODUTOS"))
     }
 
-    produtos.push({nome:nomeProduto,preco:precoProduto})
+    if(produtoEditado){
+      produtos[produtoEditado.index] = {nome:nomeProduto,preco:precoProduto}
+    }else{
+      produtos.push({nome:nomeProduto,preco:precoProduto})
+    }
+
+   
     
     //Enviar dados para o Async Storage
     await AsyncStorage.setItem("PRODUTOS",JSON.stringify(produtos))
 
     //Mostrando alerta para o usuário
-    alert("PRODUTO CADASTRADO")
+    alert(produtoEditado?"PRODUTO ATUALIZADO":"PRODUTO CADASTRADO")
+
+    setProdutoEditado(null)
+    //Limpando formulário
+    setNomeProduto('')
+    setPrecoProduto('')
 
     BuscarDados()
 
@@ -35,6 +52,7 @@ export default function App() {
   
   }
   async function DeletarProduto(index){
+    console.log(index)
     const tempDados = listaProdutos
     const dados = tempDados.filter((item,ind)=>{
       return ind!==index
@@ -44,6 +62,13 @@ export default function App() {
 
     await AsyncStorage.setItem("PRODUTOS",JSON.stringify(dados))
 
+  }
+
+  function EditarProduto(index){
+    const produto = listaProdutos[index]
+    setNomeProduto(produto.nome)
+    setPrecoProduto(produto.preco)
+    setProdutoEditado({index})
   }
 
   return (
@@ -66,7 +91,7 @@ export default function App() {
       />
 
       <TouchableOpacity style={styles.btn} onPress={Salvar}>
-        <Text style={{color:"white"}}>Salvar</Text>
+        <Text style={{color:"white"}}>{produtoEditado?"ATUALIZAR":"CADASTRAR"}</Text>
       </TouchableOpacity>
 
       <FlatList 
@@ -76,8 +101,21 @@ export default function App() {
             <View style={styles.listarFlat}>
               <View>
                 <Text>NOME:{item.nome} - PREÇO:{item.preco}</Text>
-                <TouchableOpacity onPress={()=>DeletarProduto(index)}>
+              </View>
+
+              <View style={{flexDirection:"row"}}>
+              <TouchableOpacity 
+                  onPress={()=>DeletarProduto(index)}
+                  style={styles.btnExcluir}
+                >
                   <Text>Excluir</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  onPress={()=>EditarProduto(index)}
+                  style={styles.btnEditar}
+                >
+                  <Text>Editar</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -133,5 +171,16 @@ const styles = StyleSheet.create({
     width:100,
     height:20,
     marginTop:5
+  },
+  btnEditar:{
+    flexDirection:'column',
+    justifyContent:"space-around",
+    alignItems:"center",
+    borderRadius:12,
+    backgroundColor:"orange",
+    width:100,
+    height:20,
+    marginTop:5,
+    marginLeft:10
   }
 });
